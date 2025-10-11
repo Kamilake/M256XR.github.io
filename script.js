@@ -684,28 +684,45 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
             if (connectionType === 'usb') {
                 const writer = serialPort.writable.getWriter();
                 const encoder = new TextEncoder();
+                
+                const keymapBytes = convertKeymapToBytes(keymapData);
+                const settingsBytes = convertSettingsToBytes();
+                const combinedBuffer = new Uint8Array(keymapBytes.byteLength + settingsBytes.byteLength);
+                combinedBuffer.set(new Uint8Array(keymapBytes), 0);
+                combinedBuffer.set(new Uint8Array(settingsBytes), keymapBytes.byteLength);
+
                 try {
-                    connectionStatus.textContent = 'Status: キーマップ書き込み中...';
-                    const keymapBytes = convertKeymapToBytes(keymapData); 
-                    await writer.write(encoder.encode('WRITE_KEYMAP\n'));
-                    await new Promise(r => setTimeout(r, 100));
-                    await writer.write(new Uint8Array(keymapBytes));
-                    // ★ 修正点: 待機時間を延長
-                    await new Promise(r => setTimeout(r, 800));
-                    addDebugLog('USB経由でキーマップ書き込み完了');
+                    connectionStatus.textContent = 'Status: キーボードと通信中...';
+                    await writer.write(encoder.encode('WRITE_ALL\n'));
+                    addDebugLog('WRITE_ALL コマンド送信');
 
-                    connectionStatus.textContent = 'Status: 設定書き込み中...';
-                    const settingsBytes = convertSettingsToBytes();
-                    await writer.write(encoder.encode('WRITE_CONFIG\n'));
-                    await new Promise(r => setTimeout(r, 100));
-                    await writer.write(new Uint8Array(settingsBytes));
-                    // ★ 修正点: 待機時間を延長
-                    await new Promise(r => setTimeout(r, 800));
-                    addDebugLog('USB経由で設定書き込み完了');
+                    const reader = serialPort.readable.getReader();
+                    let response = '';
+                    const timeout = setTimeout(() => { try { reader.cancel(); } catch(e){} }, 2000);
 
-                    connectionStatus.textContent = 'Status: 再起動コマンド送信中...';
-                    await writer.write(encoder.encode('REBOOT\n'));
-                    addDebugLog('USB経由で再起動コマンド送信完了');
+                    try {
+                        while (true) {
+                            const { value, done } = await reader.read();
+                            if (done) break;
+                            response += new TextDecoder().decode(value);
+                            if (response.includes("OK_ALL")) {
+                                clearTimeout(timeout);
+                                addDebugLog('キーボードから OK_ALL 応答受信');
+                                break;
+                            }
+                        }
+                    } finally {
+                        reader.releaseLock();
+                    }
+
+                    if (!response.includes("OK_ALL")) {
+                        throw new Error("キーボードから応答がありません。再接続してください。");
+                    }
+
+                    connectionStatus.textContent = 'Status: 全データを書き込み中...';
+                    await writer.write(combinedBuffer);
+                    addDebugLog('全データ(316bytes)を送信完了');
+                    
                 } finally {
                     writer.releaseLock();
                 }
@@ -737,11 +754,6 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
             connectionStatus.textContent = 'Status: 書き込み完了! キーボードが再起動します'; 
             alert('✓ キーマップと設定の保存に成功しました!\n\nキーボードが再起動します。\n数秒後に再接続してください。'); 
             
-            setTimeout(() => {
-                if(connectionType === 'usb') disconnectUSB();
-                else if (connectionType === 'bluetooth') disconnectBluetooth();
-            }, 1500);
-    
         } catch (error) { 
             alert('書き込みに失敗しました: ' + error.message); 
             connectionStatus.textContent = 'Status: 書き込み失敗'; 
