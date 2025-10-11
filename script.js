@@ -356,7 +356,7 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
             for(const [comment, count] of Object.entries(row_counts)) {
                 createRow(count, comment);
             }
-            fileContent = fileContent.slice(0, -2) + '\n'; // 最後のカンマを削除
+            fileContent = fileContent.slice(0, -2) + '\n';
             fileContent += '  }';
             fileContent += (layerIndex < keymapInValues.length - 1) ? ',\n\n' : '\n';
         });
@@ -504,20 +504,19 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
     async function disconnectBluetooth() {
         if (bluetoothDevice && bluetoothDevice.gatt.connected) {
             await bluetoothDevice.gatt.disconnect();
-            addDebugLog('Bluetooth手動切断');
         }
     }
     
     async function disconnectUSB() {
         if (serialPort) {
             await serialPort.close();
-            addDebugLog('USB手動切断');
         }
     }
     
     function handleDisconnect() {
-        if (connectionType === 'usb') serialPort = null;
-        if (connectionType === 'bluetooth') bluetoothDevice = null;
+        const type = connectionType;
+        if (type === 'usb') serialPort = null;
+        if (type === 'bluetooth') bluetoothDevice = null;
         
         connectionStatus.textContent = 'Status: 切断されました';
         keymapCharacteristic = null;
@@ -527,7 +526,7 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
         updateConnectionUI(false, null);
         stopBatteryMonitoring();
         batteryInfo.textContent = '🔋 Battery: --';
-        addDebugLog('デバイス切断完了');
+        addDebugLog(`デバイス(${type})切断完了`);
     }
     
     function updateConnectionUI(connected, type) {
@@ -560,7 +559,6 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
         try {
             connectionStatus.textContent = 'Status: 読み込み中...';
             
-            // Step 1: キーマップを読み込む
             addDebugLog('キーマップ読み込み開始...');
             let keymapBuffer;
             
@@ -612,7 +610,6 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
             keymapData = newKeymapData;
             renderKeyboard();
             
-            // Step 2: 設定を読み込む
             addDebugLog('設定読み込み開始...');
             let configBuffer;
 
@@ -620,8 +617,6 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
                 if (configCharacteristic) {
                     const data = await configCharacteristic.readValue();
                     configBuffer = data.buffer;
-                } else {
-                    addDebugLog('設定特性が利用不可 - スキップ');
                 }
             } else if (connectionType === 'usb') {
                 const writer = serialPort.writable.getWriter();
@@ -695,7 +690,8 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
                     await writer.write(encoder.encode('WRITE_KEYMAP\n'));
                     await new Promise(r => setTimeout(r, 100));
                     await writer.write(new Uint8Array(keymapBytes));
-                    await new Promise(r => setTimeout(r, 300));
+                    // ★ 修正点: 待機時間を延長
+                    await new Promise(r => setTimeout(r, 800));
                     addDebugLog('USB経由でキーマップ書き込み完了');
 
                     connectionStatus.textContent = 'Status: 設定書き込み中...';
@@ -703,7 +699,8 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
                     await writer.write(encoder.encode('WRITE_CONFIG\n'));
                     await new Promise(r => setTimeout(r, 100));
                     await writer.write(new Uint8Array(settingsBytes));
-                    await new Promise(r => setTimeout(r, 300));
+                    // ★ 修正点: 待機時間を延長
+                    await new Promise(r => setTimeout(r, 800));
                     addDebugLog('USB経由で設定書き込み完了');
 
                     connectionStatus.textContent = 'Status: 再起動コマンド送信中...';
@@ -743,7 +740,7 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
             setTimeout(() => {
                 if(connectionType === 'usb') disconnectUSB();
                 else if (connectionType === 'bluetooth') disconnectBluetooth();
-            }, 1000);
+            }, 1500);
     
         } catch (error) { 
             alert('書き込みに失敗しました: ' + error.message); 
