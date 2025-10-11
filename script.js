@@ -356,7 +356,7 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
             for(const [comment, count] of Object.entries(row_counts)) {
                 createRow(count, comment);
             }
-            fileContent = fileContent.slice(0, -2) + '\n';
+            fileContent = fileContent.slice(0, -2) + '\n'; // 最後のカンマを削除
             fileContent += '  }';
             fileContent += (layerIndex < keymapInValues.length - 1) ? ',\n\n' : '\n';
         });
@@ -475,8 +475,15 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
             connectionStatus.textContent = 'Status: ポート選択中...';
             
             serialPort = await navigator.serial.requestPort({
-                filters: [{ usbVendorId: 0x239A, usbProductId: 0x8029 }]
+                filters: [
+                    { usbVendorId: 0x239A, usbProductId: 0x802A },  // 新しいID
+                    { usbVendorId: 0x239A, usbProductId: 0x8029 }   // 旧IDとの互換性
+                ]
             });
+
+            // デバイス情報をログに表示
+            const info = serialPort.getInfo();
+            addDebugLog(`接続デバイス: VID=0x${info.usbVendorId?.toString(16)}, PID=0x${info.usbProductId?.toString(16)}`);
 
             serialPort.addEventListener('disconnect', handleDisconnect);
             
@@ -504,19 +511,34 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
     async function disconnectBluetooth() {
         if (bluetoothDevice && bluetoothDevice.gatt.connected) {
             await bluetoothDevice.gatt.disconnect();
+            addDebugLog('Bluetooth手動切断');
         }
     }
     
     async function disconnectUSB() {
         if (serialPort) {
-            await serialPort.close();
+            try {
+                // イベントリスナーを削除
+                serialPort.removeEventListener('disconnect', handleDisconnect);
+                
+                // ポートが開いている場合のみ閉じる
+                if (serialPort.readable) {
+                    await serialPort.close();
+                }
+                addDebugLog('USB手動切断');
+            } catch (error) {
+                addDebugLog('USB切断時のエラー（無視可能）: ' + error.message);
+            } finally {
+                // 必ずnullに設定
+                serialPort = null;
+                handleDisconnect();
+            }
         }
     }
     
     function handleDisconnect() {
-        const type = connectionType;
-        if (type === 'usb') serialPort = null;
-        if (type === 'bluetooth') bluetoothDevice = null;
+        if (connectionType === 'usb') serialPort = null;
+        if (connectionType === 'bluetooth') bluetoothDevice = null;
         
         connectionStatus.textContent = 'Status: 切断されました';
         keymapCharacteristic = null;
@@ -526,7 +548,7 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
         updateConnectionUI(false, null);
         stopBatteryMonitoring();
         batteryInfo.textContent = '🔋 Battery: --';
-        addDebugLog(`デバイス(${type})切断完了`);
+        addDebugLog('デバイス切断完了');
     }
     
     function updateConnectionUI(connected, type) {
@@ -559,6 +581,7 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
         try {
             connectionStatus.textContent = 'Status: 読み込み中...';
             
+            // Step 1: キーマップを読み込む
             addDebugLog('キーマップ読み込み開始...');
             let keymapBuffer;
             
@@ -610,6 +633,7 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
             keymapData = newKeymapData;
             renderKeyboard();
             
+            // Step 2: 設定を読み込む
             addDebugLog('設定読み込み開始...');
             let configBuffer;
 
@@ -617,6 +641,8 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
                 if (configCharacteristic) {
                     const data = await configCharacteristic.readValue();
                     configBuffer = data.buffer;
+                } else {
+                    addDebugLog('設定特性が利用不可 - スキップ');
                 }
             } else if (connectionType === 'usb') {
                 const writer = serialPort.writable.getWriter();
@@ -684,47 +710,123 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
             if (connectionType === 'usb') {
                 const writer = serialPort.writable.getWriter();
                 const encoder = new TextEncoder();
+                const decoder = new TextDecoder();
                 
-                const keymapBytes = convertKeymapToBytes(keymapData);
-                const settingsBytes = convertSettingsToBytes();
-                const combinedBuffer = new Uint8Array(keymapBytes.byteLength + settingsBytes.byteLength);
-                combinedBuffer.set(new Uint8Array(keymapBytes), 0);
-                combinedBuffer.set(new Uint8Array(settingsBytes), keymapBytes.byteLength);
-
                 try {
-                    connectionStatus.textContent = 'Status: キーボードと通信中...';
-                    await writer.write(encoder.encode('WRITE_ALL\n'));
-                    addDebugLog('WRITE_ALL コマンド送信');
-
-                    const reader = serialPort.readable.getReader();
-                    let response = '';
-                    const timeout = setTimeout(() => { try { reader.cancel(); } catch(e){} }, 2000);
-
+                    // キーマップ書き込み
+                    connectionStatus.textContent = 'Status: キーマップ書き込み中...';
+                    const keymapBytes = convertKeymapToBytes(keymapData); 
+                    await writer.write(encoder.encode('WRITE_KEYMAP\n'));
+                    await new Promise(r => setTimeout(r, 100));
+                    await writer.write(new Uint8Array(keymapBytes));
+                    writer.releaseLock();
+                    
+                    // キーマップ書き込みの応答を待つ
+                    const reader1 = serialPort.readable.getReader();
+                    let response1 = '';
+                    const timeout1 = setTimeout(() => {
+                        try { reader1.cancel(); } catch(e) {}
+                    }, 5000);
+                    
                     try {
                         while (true) {
-                            const { value, done } = await reader.read();
+                            const { value, done } = await reader1.read();
                             if (done) break;
-                            response += new TextDecoder().decode(value);
-                            if (response.includes("OK_ALL")) {
-                                clearTimeout(timeout);
-                                addDebugLog('キーボードから OK_ALL 応答受信');
+                            response1 += decoder.decode(value, { stream: true });
+                            if (response1.includes('OK') || response1.includes('ERROR')) {
+                                clearTimeout(timeout1);
                                 break;
                             }
                         }
                     } finally {
-                        reader.releaseLock();
+                        try { reader1.releaseLock(); } catch(e) {}
                     }
-
-                    if (!response.includes("OK_ALL")) {
-                        throw new Error("キーボードから応答がありません。再接続してください。");
-                    }
-
-                    connectionStatus.textContent = 'Status: 全データを書き込み中...';
-                    await writer.write(combinedBuffer);
-                    addDebugLog('全データ(316bytes)を送信完了');
                     
-                } finally {
-                    writer.releaseLock();
+                    // 応答をログに表示
+                    addDebugLog(`キーマップ書き込み応答: ${response1.trim()}`);
+                    
+                    if (response1.includes('ERROR')) {
+                        throw new Error('キーマップ書き込みに失敗しました');
+                    }
+                    addDebugLog('✓ USB経由でキーマップ書き込み完了');
+
+                    // 設定書き込み
+                    const writer2 = serialPort.writable.getWriter();
+                    connectionStatus.textContent = 'Status: 設定書き込み中...';
+                    const settingsBytes = convertSettingsToBytes();
+                    await writer2.write(encoder.encode('WRITE_CONFIG\n'));
+                    await new Promise(r => setTimeout(r, 100));
+                    await writer2.write(new Uint8Array(settingsBytes));
+                    writer2.releaseLock();
+                    
+                    // 設定書き込みの応答を待つ
+                    const reader2 = serialPort.readable.getReader();
+                    let response2 = '';
+                    const timeout2 = setTimeout(() => {
+                        try { reader2.cancel(); } catch(e) {}
+                    }, 5000);
+                    
+                    try {
+                        while (true) {
+                            const { value, done } = await reader2.read();
+                            if (done) break;
+                            response2 += decoder.decode(value, { stream: true });
+                            if (response2.includes('OK') || response2.includes('ERROR')) {
+                                clearTimeout(timeout2);
+                                break;
+                            }
+                        }
+                    } finally {
+                        try { reader2.releaseLock(); } catch(e) {}
+                    }
+                    
+                    // 応答をログに表示
+                    addDebugLog(`設定書き込み応答: ${response2.trim()}`);
+                    
+                    if (response2.includes('ERROR')) {
+                        throw new Error('設定書き込みに失敗しました');
+                    }
+                    addDebugLog('✓ USB経由で設定書き込み完了');
+
+                    // 再起動コマンド送信
+                    const writer3 = serialPort.writable.getWriter();
+                    connectionStatus.textContent = 'Status: 再起動コマンド送信中...';
+                    await writer3.write(encoder.encode('REBOOT\n'));
+                    writer3.releaseLock();
+                    
+                    // 再起動応答を待つ
+                    const reader3 = serialPort.readable.getReader();
+                    let response3 = '';
+                    const timeout3 = setTimeout(() => {
+                        try { reader3.cancel(); } catch(e) {}
+                    }, 2000);
+                    
+                    try {
+                        while (true) {
+                            const { value, done } = await reader3.read();
+                            if (done) break;
+                            response3 += decoder.decode(value, { stream: true });
+                            if (response3.includes('OK')) {
+                                clearTimeout(timeout3);
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        // 再起動によってシリアルが切断される場合があるのでエラーは無視
+                        addDebugLog('再起動により接続が切断されました（正常）');
+                    } finally {
+                        try { reader3.releaseLock(); } catch(e) {}
+                    }
+                    
+                    // 応答をログに表示
+                    if (response3) {
+                        addDebugLog(`再起動応答: ${response3.trim()}`);
+                    }
+                    addDebugLog('✓ USB経由で再起動コマンド送信完了');
+                } catch (error) {
+                    // writerがロックされている場合は解放を試みる
+                    try { writer.releaseLock(); } catch(e) {}
+                    throw error;
                 }
 
             } else if (connectionType === 'bluetooth') {
@@ -754,6 +856,21 @@ const uint16_t layout[NUM_LAYERS][LAYOUT_KEY_COUNT] = {
             connectionStatus.textContent = 'Status: 書き込み完了! キーボードが再起動します'; 
             alert('✓ キーマップと設定の保存に成功しました!\n\nキーボードが再起動します。\n数秒後に再接続してください。'); 
             
+            // USB接続の場合は再起動によって自動的に切断される
+            // Bluetooth接続の場合は手動で切断
+            if (connectionType === 'bluetooth') {
+                setTimeout(() => {
+                    disconnectBluetooth();
+                }, 1000);
+            } else if (connectionType === 'usb') {
+                // USB再起動後の自動切断を待つ
+                setTimeout(() => {
+                    if (serialPort) {
+                        disconnectUSB();
+                    }
+                }, 2000);
+            }
+    
         } catch (error) { 
             alert('書き込みに失敗しました: ' + error.message); 
             connectionStatus.textContent = 'Status: 書き込み失敗'; 
