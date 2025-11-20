@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VRChat ふニャオス総合診断</title>
+    <!-- CSSファイルの読み込み -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- 背景エフェクト -->
+    <div class="bg-decoration"></div>
+
+    <!-- スタート画面 -->
+    <div class="container" id="start-screen">
+        <h1>VRChat<br>ふニャオス総合診断</h1>
+        <p class="subtitle">深層心理からアバターの身長まで。<br>全15問であなたの「オスの威厳」を徹底解析。</p>
+        <div class="icon-area">🧪</div>
+        <button class="btn start-btn" onclick="startQuiz()">診断を始める</button>
+        <div class="footer-credit">Ver 4.0 / JS Split Edition</div>
+    </div>
+
+    <!-- クイズ画面 -->
+    <div class="container hidden" id="quiz-screen">
+        <div class="progress-container">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+        <div class="quiz-header">
+            <span class="q-label">QUESTION</span>
+            <span class="q-count" id="q-count">01 / 15</span>
+        </div>
+        <h2 id="question-text">質問読み込み中...</h2>
+        <div id="options-container">
+            <!-- JSでボタン生成 -->
+        </div>
+    </div>
+
+    <!-- 結果画面 -->
+    <div class="container hidden" id="result-screen">
+        <h2>診断結果</h2>
+        <div class="result-wrapper">
+            <div id="result-type">判定中...</div>
+            <div class="score-area">
+                <span class="score-label">ふニャオス度</span>
+                <span id="result-score">0%</span>
+            </div>
+            <div id="result-tags"></div>
+            <div class="radar-chart-placeholder">
+                <!-- ここに簡易的なパラメータを表示 -->
+                <ul id="result-params"></ul>
+            </div>
+            <p id="result-text">テキスト</p>
+        </div>
+        
+        <button class="btn share-btn" onclick="shareTwitter()">𝕏 (Twitter)でポスト</button>
+        <button class="btn retry-btn" onclick="location.reload()">トップに戻る</button>
+    </div>
+
+    <!-- JSファイルの読み込み -->
+    <script src="script.js"></script>
+</body>
+</html>
