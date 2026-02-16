@@ -8,7 +8,7 @@ const questions = [
         text: "Q1. 우선 기본부터. 평소 플레이 스타일은?",
         options: [
             { text: "보이스챗으로 대화한다", score: 0, tags: ["voice"] },
-            { text: "무언(Mute)으로 필담이나 제스처", score: 4, tags: ["mute", "cute_move"] },
+            { text: "뮤트. 펜이나 제스처", score: 4, tags: ["mute", "cute_move"] },
             { text: "보이스체인저를 사용해서 대화한다", score: 3, tags: ["voice", "babiniku"] },
             { text: "자고 있는 경우가 많다", score: 5, tags: ["sleep"] }
         ]
@@ -115,10 +115,10 @@ const questions = [
     {
         text: "Q13. 자기 자신을 뭐라고 부르나? (1인칭)",
         options: [
-            { text: "나·저", score: 0 },
-            { text: "저 (정중체)", score: 2 },
-            { text: "우리·본인", score: 3 },
-            { text: "자기 이름·캐릭터 말투", score: 6, tags: ["rp"] }
+            { text: "오레, 보쿠 - 나", score: 0 },
+            { text: "와타시 - 저 (여성향)", score: 2 },
+            { text: "우치, 지분 - 우리·본인", score: 3 },
+            { text: "이름, 캐릭터 말투", score: 6, tags: ["rp"] }
         ]
     },
     {
