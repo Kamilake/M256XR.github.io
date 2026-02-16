@@ -304,3 +304,213 @@ function shareTwitter() {
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
     window.open(twitterUrl, '_blank');
 }
+
+// 결과를 Canvas 이미지로 렌더링
+function renderResultImage() {
+    const { percentage, type } = window.resultData;
+    const canvas = document.createElement('canvas');
+    const W = 800, H = 600;
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // 배경
+    ctx.fillStyle = '#1a1b26';
+    ctx.fillRect(0, 0, W, H);
+
+    // 장식 그라데이션
+    const g1 = ctx.createRadialGradient(80, 96, 0, 80, 96, 240);
+    g1.addColorStop(0, 'rgba(187,154,247,0.15)');
+    g1.addColorStop(1, 'transparent');
+    ctx.fillStyle = g1;
+    ctx.fillRect(0, 0, W, H);
+
+    const g2 = ctx.createRadialGradient(720, 384, 0, 720, 384, 240);
+    g2.addColorStop(0, 'rgba(122,162,247,0.15)');
+    g2.addColorStop(1, 'transparent');
+    ctx.fillStyle = g2;
+    ctx.fillRect(0, 0, W, H);
+
+    // 카드 배경
+    ctx.fillStyle = 'rgba(36,40,59,0.95)';
+    roundRect(ctx, 40, 30, W - 80, H - 60, 24);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(122,162,247,0.3)';
+    ctx.lineWidth = 1;
+    roundRect(ctx, 40, 30, W - 80, H - 60, 24);
+    ctx.stroke();
+
+    // 타이틀
+    ctx.fillStyle = '#7aa2f7';
+    ctx.font = 'bold 22px "Helvetica Neue", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('VRChat 후냐오스 종합 진단', W / 2, 74);
+
+    // 판정 타입
+    ctx.fillStyle = '#f7768e';
+    ctx.font = 'bold 32px "Helvetica Neue", Arial, sans-serif';
+    ctx.fillText(`【${type}】`, W / 2, 130);
+
+    // 후냐오스도 라벨
+    ctx.fillStyle = '#c0caf5';
+    ctx.font = '18px "Helvetica Neue", Arial, sans-serif';
+    ctx.fillText('후냐오스도', W / 2, 175);
+
+    // 퍼센트 게이지 바
+    const barX = 120, barY = 195, barW = W - 240, barH = 36;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    roundRect(ctx, barX, barY, barW, barH, 18);
+    ctx.fill();
+
+    const fillW = barW * (percentage / 100);
+    if (fillW > 0) {
+        const barGrad = ctx.createLinearGradient(barX, 0, barX + fillW, 0);
+        barGrad.addColorStop(0, '#7aa2f7');
+        barGrad.addColorStop(1, '#bb9af7');
+        ctx.fillStyle = barGrad;
+        roundRect(ctx, barX, barY, fillW, barH, 18);
+        ctx.fill();
+    }
+
+    // 퍼센트 텍스트
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px "Helvetica Neue", Arial, sans-serif';
+    ctx.fillText(`${percentage}%`, W / 2, barY + 26);
+
+    // 태그 표시
+    const tagMap = {
+        "voice": "보이스세", "mute": "무언세", "babiniku": "바미니쿠",
+        "small": "저신장", "fbt_cute": "풀트래킹세", "drunk_cute": "취하면 데레",
+        "sensitive": "고감도", "shy": "낯가림", "tsundere_trigger": "츤데레",
+        "yandere": "격한 감정", "want_love": "관심종자", "top": "공격", "bottom": "수비"
+    };
+    const visibleTags = [...collectedTags].filter(t => tagMap[t]).map(t => '#' + tagMap[t]);
+
+    let cursorY = 255;
+
+    if (visibleTags.length > 0) {
+        ctx.font = 'bold 16px "Helvetica Neue", Arial, sans-serif';
+        const tagTexts = visibleTags.join('  ');
+        ctx.fillStyle = '#7aa2f7';
+        ctx.fillText(tagTexts, W / 2, cursorY);
+        cursorY += 32;
+    }
+
+    // 파라미터 표시
+    const params = [];
+    if (collectedTags.has("top")) params.push("⚔️ 공격성：높음");
+    if (collectedTags.has("bottom") || collectedTags.has("addict")) params.push("🛡️ 방어력：낮음");
+    if (collectedTags.has("narcissist")) params.push("🪞 자기애：높음");
+    if (collectedTags.has("sensitive")) params.push("💗 감도：높음");
+
+    if (params.length > 0) {
+        ctx.font = 'bold 17px "Helvetica Neue", Arial, sans-serif';
+        ctx.fillStyle = '#c0caf5';
+        ctx.fillText(params.join('　'), W / 2, cursorY);
+        cursorY += 32;
+    }
+
+    // 결과 텍스트 (줄바꿈 처리)
+    cursorY += 8;
+    const resultText = document.getElementById('result-text').innerText;
+    ctx.fillStyle = '#c0caf5';
+    ctx.font = '17px "Helvetica Neue", Arial, sans-serif';
+    ctx.textAlign = 'left';
+    const lines = wrapText(ctx, resultText, W - 140);
+    const lineHeight = 27;
+    lines.forEach((line, i) => {
+        if (cursorY + i * lineHeight < H - 75) {
+            ctx.fillText(line, 70, cursorY + i * lineHeight);
+        }
+    });
+
+    // 푸터
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(192,202,245,0.7)';
+    ctx.font = 'bold 16px "Helvetica Neue", Arial, sans-serif';
+    ctx.fillText('#VRChat후냐오스진단', W / 2, H - 60);
+    ctx.fillStyle = 'rgba(192,202,245,0.55)';
+    ctx.font = '14px "Helvetica Neue", Arial, sans-serif';
+    ctx.fillText(window.location.href, W / 2, H - 40);
+
+    return canvas;
+}
+
+// Canvas 둥근 사각형 헬퍼
+function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+}
+
+// 텍스트 줄바꿈 헬퍼
+function wrapText(ctx, text, maxWidth) {
+    const paragraphs = text.split('\n');
+    const lines = [];
+    paragraphs.forEach(para => {
+        const chars = para.split('');
+        let line = '';
+        for (const ch of chars) {
+            const test = line + ch;
+            if (ctx.measureText(test).width > maxWidth) {
+                lines.push(line);
+                line = ch;
+            } else {
+                line = test;
+            }
+        }
+        if (line) lines.push(line);
+    });
+    return lines;
+}
+
+// Discord 등에 이미지와 함께 공유
+async function shareWithImage() {
+    const { percentage, type } = window.resultData;
+    const shareText = `전 15문항 VRChat 진단 완료!\n나의 후냐오스도는【${percentage}%】\n판정：${type}\n\n#VRChat후냐오스진단`;
+    const shareUrl = window.location.href;
+
+    const canvas = renderResultImage();
+
+    try {
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        const file = new File([blob], 'vrchat-funya-result.png', { type: 'image/png' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                text: shareText + '\n' + shareUrl,
+                files: [file]
+            });
+        } else {
+            // Web Share API 미지원 시 이미지 다운로드 폴백
+            downloadFallback(canvas, shareText, shareUrl);
+        }
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            downloadFallback(canvas, shareText, shareUrl);
+        }
+    }
+}
+
+// Web Share API 미지원 시 이미지 다운로드 + 텍스트 클립보드 복사
+function downloadFallback(canvas, text, url) {
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'vrchat-funya-result.png';
+    a.click();
+
+    const clipText = text + '\n' + url;
+    navigator.clipboard.writeText(clipText).then(() => {
+        alert('이미지가 다운로드되었습니다!\n공유용 텍스트가 클립보드에 복사되었으니, 붙여넣기 해주세요.');
+    }, () => {
+        alert('이미지가 다운로드되었습니다!\n아래 텍스트를 직접 복사해 주세요:\n\n' + clipText);
+    });
+}

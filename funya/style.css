@@ -228,8 +228,66 @@ h1 {
     color: #fff;
     border: 1px solid #333;
 }
+.discord-share-btn {
+    background: #5865F2;
+    color: #fff;
+    border: 1px solid #4752c4;
+}
 .retry-btn {
     background: transparent;
     border: 1px solid var(--btn-bg);
     color: var(--text-main);
+}
+
+.footer-credit {
+    margin-top: 16px;
+    font-size: 0.8rem;
+    opacity: 0.5;
+}
+.footer-credit a {
+    color: var(--secondary);
+    text-decoration: none;
+}
+.footer-credit a:hover {
+    text-decoration: underline;
+}
+
+/* モバイル最適化 */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+        align-items: flex-start;
+        padding-top: 20px;
+    }
+    .container {
+        padding: 1.5rem 1rem;
+        border-radius: 20px;
+    }
+    h1 {
+        font-size: 1.5rem;
+    }
+    #question-text {
+        font-size: 1rem;
+        min-height: 3.5em;
+    }
+    .btn {
+        min-height: 54px;
+        padding: 10px 16px;
+        margin: 10px 0;
+        font-size: 0.95rem;
+        border-radius: 14px;
+    }
+    #result-type {
+        font-size: 1.4rem;
+    }
+    #result-score {
+        font-size: 2.2rem;
+    }
+    #result-text {
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+    #result-params {
+        font-size: 0.85rem;
+    }
 }
