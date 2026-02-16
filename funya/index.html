@@ -1,27 +1,27 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VRChat ふニャオス総合診断</title>
-    <!-- CSSファイルの読み込み -->
+    <title>VRChat 후냐오스 종합 진단</title>
+    <!-- CSS 파일 로드 -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- 背景エフェクト -->
+    <!-- 배경 이펙트 -->
     <div class="bg-decoration"></div>
 
-    <!-- スタート画面 -->
+    <!-- 시작 화면 -->
     <div class="container" id="start-screen">
-        <h1>VRChat<br>ふニャオス総合診断</h1>
-        <p class="subtitle">深層心理からアバターの身長まで。<br>全15問であなたの「オスの威厳」を徹底解析。</p>
+        <h1>VRChat<br>후냐오스 종합 진단</h1>
+        <p class="subtitle">심층 심리부터 아바타 신장까지.<br>총 15문항으로 당신의 「수컷의 위엄」을 철저 분석.</p>
         <div class="icon-area">🧪</div>
-        <button class="btn start-btn" onclick="startQuiz()">診断を始める</button>
+        <button class="btn start-btn" onclick="startQuiz()">진단 시작하기</button>
         <div class="footer-credit">Ver 4.0 / JS Split Edition</div>
     </div>
 
-    <!-- クイズ画面 -->
+    <!-- 퀴즈 화면 -->
     <div class="container hidden" id="quiz-screen">
         <div class="progress-container">
             <div class="progress-fill" id="progress"></div>
@@ -30,34 +30,34 @@
             <span class="q-label">QUESTION</span>
             <span class="q-count" id="q-count">01 / 15</span>
         </div>
-        <h2 id="question-text">質問読み込み中...</h2>
+        <h2 id="question-text">질문 로딩 중...</h2>
         <div id="options-container">
-            <!-- JSでボタン生成 -->
+            <!-- JS로 버튼 생성 -->
         </div>
     </div>
 
-    <!-- 結果画面 -->
+    <!-- 결과 화면 -->
     <div class="container hidden" id="result-screen">
-        <h2>診断結果</h2>
+        <h2>진단 결과</h2>
         <div class="result-wrapper">
-            <div id="result-type">判定中...</div>
+            <div id="result-type">판정 중...</div>
             <div class="score-area">
-                <span class="score-label">ふニャオス度</span>
+                <span class="score-label">후냐오스도</span>
                 <span id="result-score">0%</span>
             </div>
             <div id="result-tags"></div>
             <div class="radar-chart-placeholder">
-                <!-- ここに簡易的なパラメータを表示 -->
+                <!-- 간이 파라미터 표시 -->
                 <ul id="result-params"></ul>
             </div>
-            <p id="result-text">テキスト</p>
+            <p id="result-text">텍스트</p>
         </div>
         
-        <button class="btn share-btn" onclick="shareTwitter()">𝕏 (Twitter)でポスト</button>
-        <button class="btn retry-btn" onclick="location.reload()">トップに戻る</button>
+        <button class="btn share-btn" onclick="shareTwitter()">𝕏 (Twitter)에 포스트</button>
+        <button class="btn retry-btn" onclick="location.reload()">처음으로 돌아가기</button>
     </div>
 
-    <!-- JSファイルの読み込み -->
+    <!-- JS 파일 로드 -->
     <script src="script.js"></script>
 </body>
 </html>

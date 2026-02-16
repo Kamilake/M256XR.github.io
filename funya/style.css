@@ -14,7 +14,7 @@
 }
 
 body {
-    font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", sans-serif;
+    font-family: "Helvetica Neue", Arial, "Apple SD Gothic Neo", "Malgun Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
     background-color: var(--bg-dark);
     color: var(--text-main);
     margin: 0;
